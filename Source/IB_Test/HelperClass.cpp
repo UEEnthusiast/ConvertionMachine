@@ -1,6 +1,5 @@
 ﻿// Copyright Yoan Rock 2023. All Rights Reserved.
 
-
 #include "HelperClass.h"
 
 FName UHelperClass::ConvertToName(const FText& Elem)

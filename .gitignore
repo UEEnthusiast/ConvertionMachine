@@ -1,0 +1,10 @@
+.idea/
+.vs/
+.vsconfig
+Binaries/
+Config/
+IB_Test.sln
+IB_Test.uproject
+Intermediate/
+Platforms/
+Saved/

@@ -2,9 +2,9 @@
 
 #include "MachineActor.h"
 
-#include "HelperClass.h"
-#include "RecipeData.h"
-#include "RecipeSubsystem.h"
+#include "../Utilities/HelperClass.h"
+#include "../Datas/RecipeData.h"
+#include "../Subsystems/RecipeSubsystem.h"
 #include "ShapeActor.h"
 
 AMachineActor::AMachineActor()
@@ -170,7 +170,7 @@ void AMachineActor::OnColliderBeginOverlap(
 		return;
 	}
 	
-	FShapeCollection* ShapeCollection = NearbyShapes.Find(Shape->GetShapeName());
+	FShapeCollection* ShapeCollection = NearbyShapes.Find(UHelperClass::ConvertToName(Shape->GetShapeName()));
 	if(!ensure(ShapeCollection))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("AMachineActor::OnColliderBeginOverlap - Unknown shape : %s. It's likely that the shape was forgotten to be added in the data table."), *Shape->GetShapeName().ToString());
@@ -201,7 +201,7 @@ void AMachineActor::OnColliderEndOverlap(
 		return;
 	}
 
-	FShapeCollection* ShapeCollection = NearbyShapes.Find(Shape->GetShapeName());
+	FShapeCollection* ShapeCollection = NearbyShapes.Find(UHelperClass::ConvertToName(Shape->GetShapeName()));
 	if(!ensure(ShapeCollection))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("AMachineActor::OnColliderEndOverlap - Unknown shape : %s. It's likely that the shape was forgotten to be added in the data table."), *Shape->GetShapeName().ToString());

@@ -2,10 +2,9 @@
 
 
 #include "RecipeSubsystem.h"
-#include "RecipeData.h"
-#include "ShapeData.h"
-#include "RecipeSettings.h"
-#include "ShapeActor.h"
+#include "../Datas/RecipeData.h"
+#include "../Datas/ShapeData.h"
+#include "../Settings/RecipeSettings.h"
 #include "Engine/DataTable.h"
 
 void URecipeSubsystem::Initialize(FSubsystemCollectionBase& Collection)

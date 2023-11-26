@@ -22,14 +22,14 @@ public:
 	/**
 	 * @return The name of the shape.
 	 */
-	FName GetShapeName() const { return ShapeName;}
+	FText GetShapeName() const { return ShapeName;}
 
 protected:
 	/**
 	 * The name of the shape.
 	 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Shape")
-	FName ShapeName = FName();
+	FText ShapeName = FText();
 
 	/**
 	 * The static mesh component representing the shape.

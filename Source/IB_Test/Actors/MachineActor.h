@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Components/SphereComponent.h"
 #include "GameFramework/Actor.h"
+#include "IB_Test/UI/RecipeDataEntry.h"
 #include "MachineActor.generated.h"
 
 class URecipeSubsystem;
@@ -35,6 +36,25 @@ class IB_TEST_API AMachineActor : public AActor
 public:
 	AMachineActor();
 
+	FString GetMachineName() const
+	{
+		return MachineName.ToString();
+	}
+
+	TArray<FText> GetAffectedRecipes() const
+	{
+		return AffectedRecipes;
+	}
+ 
+	TArray<URecipeDataItem*> GetRecipeEntries() const;
+
+	bool SetRecipeAvailability(const FText& RecipeName, bool bIsActivated);
+
+	/**
+	 * Process all valid recipes for the machine, destroying input shapes and spawning output shapes as needed.
+	 */
+	void ProcessValidRecipes();
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -53,14 +73,6 @@ protected:
 	 * @return True if the shape was successfully destroyed, false otherwise.
 	 */
 	bool DestroyShapeByName(const FName& ShapeName);
-
-	/**
-	 * Spawn a shape by its name.
-	 *
-	 * @param ShapeName The name of the shape to be spawned.
-	 * @return True if the shape was successfully spawned, false otherwise.
-	 */
-	bool SpawnShapeByName(const FName& ShapeName);
 
 	/**
 	 * Called when the collider begins to overlap with another actor
@@ -95,6 +107,12 @@ protected:
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Config")
 	UStaticMeshComponent* MachineMesh;
+
+	/**
+	 * The name of the shape.
+	 */
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Config")
+	FText MachineName = FText();
 	
 private:
 
@@ -104,12 +122,7 @@ private:
 	 * @param RecipeData The recipe data to be checked.
 	 * @return True if all required shapes are present, false otherwise.
 	 */
-	bool AreAllShapesInRecipe(const FRecipeData& RecipeData) const;
-
-	/**
-	 * Process all valid recipes for the machine, destroying input shapes and spawning output shapes as needed.
-	 */
-	void ProcessValidRecipes();
+	bool AreAllShapesInRecipe(const URecipeDataItem& RecipeData) const;
 	
 	/*
 	* A simple TMap<FString,TSoftObjectPtr<AShapeActor>> isn't suitable in this context due to the potential presence of duplicate keys
@@ -117,13 +130,6 @@ private:
 	*/
 	UPROPERTY(Transient)
 	TMap<FName, FShapeCollection> NearbyShapes;
-
-	/*
-	* Stores recipe data in BeginPlay to avoid reading the data table each time a recipe check is performed.
-	* This improves performance by eliminating redundant data table lookups.
-	*/
-	UPROPERTY(Transient)
-	TArray<FRecipeData> CachedRecipesData;
 
 	/*
 	* Recipe subsystem simply stored in BeginPlay() to be easily accessed
@@ -136,4 +142,13 @@ private:
 	*/
 	UPROPERTY(Transient)
 	TObjectPtr<USphereComponent> Collider;
+	
+	/*
+	* Stores recipe data in BeginPlay to avoid reading the data table each time a recipe check is performed.
+	* This improves performance by eliminating redundant data table lookups.
+	* 
+	* Data cache for UI-related recipe information
+	*/
+	UPROPERTY(Transient)
+	TMap<FName, URecipeDataItem*> RecipeDataEntries = {};
 };

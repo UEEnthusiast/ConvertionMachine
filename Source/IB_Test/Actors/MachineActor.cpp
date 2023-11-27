@@ -2,9 +2,9 @@
 
 #include "MachineActor.h"
 
-#include "../Utilities/HelperClass.h"
-#include "../Datas/RecipeData.h"
-#include "../Subsystems/RecipeSubsystem.h"
+#include "IB_Test/Utilities/HelperClass.h"
+#include "IB_Test/Datas/RecipeData.h"
+#include "IB_Test/Subsystems/RecipeSubsystem.h"
 #include "ShapeActor.h"
 
 AMachineActor::AMachineActor()
@@ -17,6 +17,29 @@ AMachineActor::AMachineActor()
 	Collider = CreateDefaultSubobject<USphereComponent>(FName("Collider"));
 	Collider->SetupAttachment(MachineMesh);
 	Collider->InitSphereRadius(200.f);	
+}
+
+TArray<URecipeDataItem*> AMachineActor::GetRecipeEntries() const
+{
+	TArray<URecipeDataItem*> RecipeEntries = {};
+	for(const TPair<FName, URecipeDataItem*> Pair : RecipeDataEntries)
+	{
+		RecipeEntries.AddUnique(Pair.Value);
+	}
+	return RecipeEntries;
+}
+
+bool AMachineActor::SetRecipeAvailability(const FText& RecipeName, bool bIsActivated)
+{
+	URecipeDataItem* RecipeDataEntry = RecipeDataEntries.FindChecked(UHelperClass::ConvertToName(RecipeName));
+	if(!ensure(RecipeDataEntry))
+	{
+		//Todo : LOG
+		return false;
+	}
+	
+	RecipeDataEntry->bIsActivated = bIsActivated;
+	return true;
 }
 
 void AMachineActor::BeginPlay()
@@ -43,7 +66,15 @@ void AMachineActor::BeginPlay()
 	if(RecipeSubsystem.IsValid())
 	{
 		// Cache RecipeData for the Recipes associated with this machine.
-		CachedRecipesData = RecipeSubsystem->GetRecipeDataByNames(AffectedRecipes);
+		TArray<FRecipeData> RecipesData = RecipeSubsystem->GetRecipeDataByNames(AffectedRecipes);
+
+		for(const FRecipeData RecipeData : RecipesData)
+		{
+			URecipeDataItem* RecipeItem = NewObject<URecipeDataItem>(this);
+			RecipeItem->Initialize(RecipeData.Name, RecipeData.InputShape, RecipeData.OutputShape);
+			
+			RecipeDataEntries.Add(UHelperClass::ConvertToName(RecipeData.Name), RecipeItem);
+		}
 	}
 
 	// Populate the NearbyShapes array with keys for each possible Shape.
@@ -56,13 +87,14 @@ void AMachineActor::BeginPlay()
 bool AMachineActor::DestroyShapeByName(const FName& ShapeName)
 {
 	FShapeCollection* ShapeCollection = NearbyShapes.Find(ShapeName);
-	if(ensure(ShapeCollection))
+	if(!ensure(ShapeCollection))
 	{
-		TSoftObjectPtr<AShapeActor> ShapeToDestroy = ShapeCollection->Shapes.Pop();
-		return ShapeToDestroy->Destroy();
+		return false;
 	}
 
-	return false;
+	TSoftObjectPtr<AShapeActor> ShapeToDestroy = ShapeCollection->Shapes.Pop();
+	return ShapeToDestroy->Destroy();
+
 }
 
 bool AMachineActor::DestroyShapesByName(const TArray<FName>& ShapeNames)
@@ -76,63 +108,29 @@ bool AMachineActor::DestroyShapesByName(const TArray<FName>& ShapeNames)
 	return ShapeAllDestroyed;
 }
 
-bool AMachineActor::SpawnShapeByName(const FName& ShapeName)
-{
-	if(!RecipeSubsystem.IsValid())
-	{
-		UE_LOG(LogTemp, Error, TEXT("AMachineActor::SpawnShapeByName - Invalid RecipeSubsystem"));
-		return false;
-	}
-	const TSubclassOf<AShapeActor> ShapeClass = RecipeSubsystem->GetShapeActorClassByName(ShapeName);
-	if(!ShapeClass)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AMachineActor::SpawnShapeByName - Invalid ShapeClass associated with Shape Name : %s"), *(ShapeName.ToString()));
-		return false;
-	}
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Owner = this;
-	SpawnParameters.Instigator = GetInstigator();
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-			
-	UWorld* World = GetWorld();
-	if(!World)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AMachineActor::SpawnShapeByName - World is nullptr. Failed to spawn shape."));
-		return false;
-	}
-	const AActor* SpawnedActor = World->SpawnActor<AActor>(ShapeClass, GetActorLocation(), FRotator(), SpawnParameters);
-	if (!SpawnedActor)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AMachineActor::SpawnShapeByName - Spawning Shape %s using class %s failed"), *(ShapeName.ToString()), *ShapeClass.Get()->GetName());
-		return false;
-	}
-	
-	return true;
-}
-
 void AMachineActor::ProcessValidRecipes()
 {
-	for(const FRecipeData& Recipe : CachedRecipesData)
+	for(const TPair<FName, URecipeDataItem*> Pair : RecipeDataEntries)
 	{
-		if(AreAllShapesInRecipe(Recipe))
+		const URecipeDataItem& Recipe = *Pair.Value;
+		if(AreAllShapesInRecipe(Recipe) && Recipe.bIsActivated)
 		{
-			DestroyShapesByName(UHelperClass::ConvertToNames(Recipe.InputShape));
+			DestroyShapesByName(UHelperClass::ConvertToNames(Recipe.InputShapes));
 			
-			SpawnShapeByName(UHelperClass::ConvertToName(Recipe.OutputShape));
+			RecipeSubsystem->SpawnShapeByName(UHelperClass::ConvertToName(Recipe.OutputShape), this);
 		}
 	}
 }
 
-bool AMachineActor::AreAllShapesInRecipe(const FRecipeData& RecipeData) const
+bool AMachineActor::AreAllShapesInRecipe(const URecipeDataItem& RecipeData) const
 {
-	if(!ensure(RecipeData.InputShape.Num() > 0))
+	if(!ensure(RecipeData.InputShapes.Num() > 0))
 	{
 		UE_LOG(LogTemp, Error, TEXT("AMachineActor::AreAllShapesInRecipe - No InputShape provided for recipe : %s"), *(RecipeData.Name.ToString()));
 		return false;
 	}
 	
-	for (const FText& ShapeName : RecipeData.InputShape)
+	for (const FText& ShapeName : RecipeData.InputShapes)
 	{
 		const FShapeCollection* ShapeCollection = NearbyShapes.Find(UHelperClass::ConvertToName(ShapeName));
 		if(!ensure(ShapeCollection))

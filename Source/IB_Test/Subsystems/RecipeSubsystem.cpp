@@ -5,12 +5,9 @@
 
 #include "EngineUtils.h"
 #include "NiagaraFunctionLibrary.h"
-#include "IB_Test/Datas/RecipeData.h"
 #include "IB_Test/Actors/MachineActor.h"
 #include "IB_Test/Actors/ShapeActor.h"
-#include "IB_Test/Datas/ShapeData.h"
 #include "IB_Test/Settings/RecipeSettings.h"
-
 #include "Engine/DataTable.h"
 #include "IB_Test/Utilities/HelperClass.h"
 
@@ -24,9 +21,60 @@ void URecipeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::Initialize - RecipeSettings nullptr"));
 		return;
 	}
+	
+	CacheRecipeData(RecipeSettings);
+	CacheShapeData(RecipeSettings);
+	CacheVfx(RecipeSettings);
+}
 
-	CachedRecipeDataTable = RecipeSettings->RecipeDataTable.LoadSynchronous();
-	CachedShapeDataTable = RecipeSettings->ShapeDataTable.LoadSynchronous();
+void URecipeSubsystem::CacheShapeData(const URecipeSettings* RecipeSettings)
+{
+	const TSoftObjectPtr<UDataTable> CachedShapeDataTable = RecipeSettings->ShapeDataTable.LoadSynchronous();
+	if(!CachedShapeDataTable)
+	{
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::Initialize - CachedShapeDataTable invalid"));
+		return;
+	}
+	TArray<FShapeData*> OutShapesData = {};
+	CachedShapeDataTable->GetAllRows<FShapeData>("",OutShapesData);
+
+	if(!ensure(OutShapesData.Num() > 0))
+	{
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::Initialize - OutShapesData empty, check the Shape DataTable"));
+		return;
+	}
+
+	// Build our map to easily & efficiently retrieve data later
+	for(const FShapeData* ShapeData : OutShapesData)
+	{
+		CachedShapesData.Add(UHelperClass::ConvertToName(ShapeData->Name), *ShapeData);
+	}
+}
+
+void URecipeSubsystem::CacheRecipeData(const URecipeSettings* RecipeSettings)
+{
+	const TSoftObjectPtr<UDataTable> CachedRecipeDataTable = RecipeSettings->RecipeDataTable.LoadSynchronous();
+	if(!CachedRecipeDataTable)
+	{
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::Initialize - CachedRecipeDataTable invalid"));
+	}
+	TArray<FRecipeData*> OutRecipesData = {};
+	CachedRecipeDataTable->GetAllRows<FRecipeData>("",OutRecipesData);
+
+	if(!ensure(OutRecipesData.Num() > 0))
+	{
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::Initialize - OutRecipesData empty, check the Recipe DataTable"));
+	}
+
+	// Build our map to easily & efficiently retrieve data later
+	for(const FRecipeData* RecipeData : OutRecipesData)
+	{
+		CachedRecipesData.Add(UHelperClass::ConvertToName(RecipeData->Name), *RecipeData);
+	}
+}
+
+void URecipeSubsystem::CacheVfx(const URecipeSettings* RecipeSettings)
+{
 	CachedSpawnVfx = RecipeSettings->SpawnVfx.LoadSynchronous();
 }
 
@@ -34,6 +82,12 @@ void URecipeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
 
+	InitMachineCollection(InWorld);
+	SetupDynamicDelegates();
+}
+
+void URecipeSubsystem::InitMachineCollection(UWorld& InWorld)
+{
 	for (TActorIterator<AMachineActor> ActorItr(&InWorld); ActorItr; ++ActorItr)
 	{
 		AMachineActor* Machine = *ActorItr;
@@ -43,12 +97,11 @@ void URecipeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 		}
 	}
 
-	if(!ensure(Machines.Num() > 0))
-	{
-		UE_LOG(LogTemp, Warning, TEXT("URecipeSubsystem::OnWorldBeginPlay - No Machine were placed in the world"));
-		return;
-	}
+	ensure(Machines.Num() > 0);
+}
 
+void URecipeSubsystem::SetupDynamicDelegates()
+{
 	OnRecipeEntryClicked.AddDynamic(this, &URecipeSubsystem::OnRecipeSpawn);
 	OnToggleRecipeAvailability.AddDynamic(this, &URecipeSubsystem::OnToggleRecipe);
 }
@@ -67,7 +120,7 @@ void URecipeSubsystem::OnToggleRecipe(FText RecipeName, bool bIsActivated)
 	GetSelectedMachine()->ProcessValidRecipes();
 }
 
-TArray<FRecipeData> URecipeSubsystem::GetRecipeDataByNames(const TArray<FText>& RecipeNames) const
+TArray<FRecipeData> URecipeSubsystem::GetRecipeDataByNames(const TArray<FText>& RecipeNames)
 {
 	TArray<FRecipeData> Recipes = {};
 	for(const FText Name : RecipeNames)
@@ -78,43 +131,29 @@ TArray<FRecipeData> URecipeSubsystem::GetRecipeDataByNames(const TArray<FText>& 
 	return Recipes;
 }
 
-FRecipeData URecipeSubsystem::GetRecipeDataByName(const FText& InRecipeName) const
+FRecipeData URecipeSubsystem::GetRecipeDataByName(const FText& InRecipeName)
 {
-	static const FString ContextString(TEXT("DataTableContext"));
-	const FName RecipeName = UHelperClass::ConvertToName(InRecipeName);
-	
-	FRecipeData* FoundRow = CachedRecipeDataTable->FindRow<FRecipeData>(RecipeName, ContextString);
-	if(FoundRow)
-	{
-		return *FoundRow;
-	}
-	
-	checkNoEntry()
-	return {};
+	return CachedRecipesData.FindChecked(UHelperClass::ConvertToName(InRecipeName));
 }
 
-TSubclassOf<AShapeActor> URecipeSubsystem::GetShapeActorClassByName(const FName& InShapeName) const
+TSubclassOf<AShapeActor> URecipeSubsystem::GetShapeActorClassByName(const FName& InShapeName)
 {
-	static const FString ContextString(TEXT("DataTableContext"));
-	
-	FShapeData* FoundShapeData = CachedShapeDataTable->FindRow<FShapeData>(InShapeName, ContextString);
-	if(FoundShapeData)
+	TSubclassOf<AShapeActor> ShapeActorClass = CachedShapesData.FindChecked(InShapeName).ShapeActorClass;
+	if(!ensure(ShapeActorClass))
 	{
-		return FoundShapeData->ShapeActorClass;
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::GetShapeActorClassByName - ShapeActorClass invalid"));
+		return {};
 	}
-
-	checkNoEntry();
-	return {};
+	
+	return ShapeActorClass;
 }
 
 TArray<FName> URecipeSubsystem::GetAllShapeNames() const
 {
-	if(!ensure(CachedShapeDataTable.IsValid()))
-	{
-		return {};
-	}
-	
-	return CachedShapeDataTable->GetRowNames();
+	TArray<FName> OutShapeNames = {};	
+	CachedShapesData.GetKeys(OutShapeNames);
+
+	return OutShapeNames;
 }
 
 TSoftObjectPtr<AMachineActor> URecipeSubsystem::GetSelectedMachine() const
@@ -164,7 +203,7 @@ bool URecipeSubsystem::SpawnOutputShape(const TSubclassOf<AShapeActor> ShapeClas
 	return true;
 }
 
-bool URecipeSubsystem::SpawnShapeByName(const FName& ShapeName, AMachineActor& MachineActor) const
+bool URecipeSubsystem::SpawnShapeByName(const FName& ShapeName, AMachineActor& MachineActor)
 { 
 	const TSubclassOf<AShapeActor> ShapeClass = GetShapeActorClassByName(ShapeName);
 	if(!ShapeClass)

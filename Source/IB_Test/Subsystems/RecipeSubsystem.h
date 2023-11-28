@@ -4,7 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "IB_Test/Actors/MachineActor.h"
+#include "IB_Test/Settings/RecipeSettings.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "IB_Test/Datas/ShapeData.h"
+#include "IB_Test/Datas/RecipeData.h"
 #include "RecipeSubsystem.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnSpawnRecipe, FText, RecipeName);
@@ -14,10 +17,9 @@ class UNiagaraSystem;
 class AMachineActor;
 class UDataTable;
 class AShapeActor;
-struct FRecipeData;
 
 /**
- * Recipe and Shape Subsystem
+ * Subsystem responsible for managing recipes, shapes, and related functionalities within the game world.
  */
 UCLASS()
 class IB_TEST_API URecipeSubsystem : public UWorldSubsystem
@@ -25,7 +27,6 @@ class IB_TEST_API URecipeSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
-	
 	// Delegate used to send event to spawn a recipe to the selected machine
 	FOnSpawnRecipe OnRecipeEntryClicked;
 
@@ -38,7 +39,7 @@ public:
 	 * @param RecipeNames The names of the recipes to retrieve.
 	 * @return An array of recipe data.
 	 */
-	TArray<FRecipeData> GetRecipeDataByNames(const TArray<FText>& RecipeNames) const;
+	TArray<FRecipeData> GetRecipeDataByNames(const TArray<FText>& RecipeNames);
 
 	/**
 	 * Get recipe data based on a provided recipe name.
@@ -46,7 +47,7 @@ public:
 	 * @param RecipeName The name of the recipe to retrieve.
 	 * @return The recipe data.
 	 */
-	FRecipeData GetRecipeDataByName(const FText& RecipeName) const;
+	FRecipeData GetRecipeDataByName(const FText& RecipeName);
 
 	/**
 	 * Get the shape actor class based on a provided shape name.
@@ -54,7 +55,7 @@ public:
 	 * @param ShapeName The name of the shape to retrieve.
 	 * @return The class of the shape actor.
 	 */
-	TSubclassOf<AShapeActor> GetShapeActorClassByName(const FName& ShapeName) const;
+	TSubclassOf<AShapeActor> GetShapeActorClassByName(const FName& InShapeName);
 
 	/**
 	 * Get an array of all shape names.
@@ -98,10 +99,9 @@ public:
 	 * @param ShapeName The name of the shape to be spawned.
 	 * @return True if the shape was successfully spawned, false otherwise.
 	 */
-	bool SpawnShapeByName(const FName& ShapeName, AMachineActor& MachineActor) const;
+	bool SpawnShapeByName(const FName& ShapeName, AMachineActor& MachineActor);
 
 protected:
-	
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 
 	/**
@@ -131,9 +131,42 @@ protected:
 	void OnToggleRecipe(FText RecipeName, bool bIsActivated);
 
 private:
+	/**
+	 * @brief Initializes the collection of machines in the specified world.
+	 *
+	 * @param InWorld The world in which to initialize the machine collection.
+	 */
+	void InitMachineCollection(UWorld& InWorld);
 
 	/**
-	 * @brief Spawns an output shape for a given machine (only used internally).
+	 * @brief Sets up dynamic delegates for handling events related to machines and recipes.
+	 *        Call this function during initialization to establish necessary event connections.
+	 */
+	void SetupDynamicDelegates();
+
+	/**
+	 * @brief Caches shape-related data from the provided recipe settings.
+	 *
+	 * @param RecipeSettings The settings containing shape-related data to be cached.
+	 */
+	void CacheShapeData(const URecipeSettings* RecipeSettings);
+
+	/**
+	 * @brief Caches recipe-related data from the provided recipe settings.
+	 *
+	 * @param RecipeSettings The settings containing recipe-related data to be cached.
+	 */
+	void CacheRecipeData(const URecipeSettings* RecipeSettings);
+
+	/**
+	 * @brief Caches visual effects (VFX) data from the provided recipe settings.
+	 *
+	 * @param RecipeSettings The settings containing VFX data to be cached.
+	 */
+	void CacheVfx(const URecipeSettings* RecipeSettings);
+
+	/**
+	 * @brief Spawns an output shape for a given machine (only used internally for now).
 	 *
 	 * @param ShapeClass The class of the shape to spawn.
 	 * @param MachineActor Reference to the target machine.
@@ -142,7 +175,7 @@ private:
 	bool SpawnOutputShape(const TSubclassOf<AShapeActor> ShapeClass, AMachineActor& MachineActor) const;
 	
 	/**
-	 * @brief Spawns the cached visual effects at a specified location (only used internally).
+	 * @brief Spawns the cached visual effects at a specified location (only used internally for now).
 	 *
 	 * @param SpawnLocation The location at which to spawn the visual effects.
 	 */
@@ -166,15 +199,9 @@ private:
 	UPROPERTY(Transient)
 	TSoftObjectPtr<AMachineActor> SelectedMachine = nullptr;
 
-	/*
-	 * Cached data table for recipes.
-	 */
-	UPROPERTY()
-	TSoftObjectPtr<UDataTable> CachedRecipeDataTable;
+	UPROPERTY(Transient)
+	TMap<FName, FRecipeData> CachedRecipesData;
 
-	/*
-	 * Cached data table for shapes.
-	 */
-	UPROPERTY()
-	TSoftObjectPtr<UDataTable> CachedShapeDataTable;
+	UPROPERTY(Transient)
+	TMap<FName, FShapeData> CachedShapesData;
 };

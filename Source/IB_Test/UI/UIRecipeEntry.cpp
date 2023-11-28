@@ -3,7 +3,9 @@
 
 #include "UIRecipeEntry.h"
 #include "RecipeDataEntry.h"
+#include "RecipeInputEntry.h"
 #include "Components/Button.h"
+#include "Components/ListView.h"
 #include "Components/CheckBox.h"
 #include "Components/TextBlock.h"
 #include "IB_Test/Subsystems/RecipeSubsystem.h"
@@ -16,6 +18,18 @@ void UUIRecipeEntry::NativeConstruct()
 	SpawnRecipe->OnClicked.AddDynamic(this, &UUIRecipeEntry::OnClickedRecipeSpawned);
 }
 
+void UUIRecipeEntry::SetInputList(const URecipeDataItem* Item)
+{
+	TArray<URecipeInputItem*> InputItems = {};
+	for(const FText& InputName : Item->InputNames)
+	{
+		URecipeInputItem* RecipeInputItem = NewObject<URecipeInputItem>(this);
+		RecipeInputItem->Initialize(InputName);
+		InputItems.Add(RecipeInputItem);
+	}
+	InputListView->SetListItems(InputItems);
+}
+
 void UUIRecipeEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
 {
 	IUserObjectListEntry::NativeOnListItemObjectSet(ListItemObject);
@@ -24,7 +38,9 @@ void UUIRecipeEntry::NativeOnListItemObjectSet(UObject* ListItemObject)
 
 	RecipeName = Item->Name;
 	NameLabel->SetText(Item->Name);
-	Input->SetText(FText::Join(FText::FromString(TEXT(", ")), Item->InputShapes));
+
+	SetInputList(Item);
+	
 	Output->SetText(Item->OutputShape);
 	CheckBox->SetIsChecked(Item->bIsActivated);
 }

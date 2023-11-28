@@ -115,7 +115,7 @@ void AMachineActor::ProcessValidRecipes()
 		const URecipeDataItem& Recipe = *Pair.Value;
 		if(AreAllShapesInRecipe(Recipe) && Recipe.bIsActivated)
 		{
-			DestroyShapesByName(UHelperClass::ConvertToNames(Recipe.InputShapes));
+			DestroyShapesByName(UHelperClass::ConvertToNames(Recipe.InputNames));
 			
 			RecipeSubsystem->SpawnShapeByName(UHelperClass::ConvertToName(Recipe.OutputShape), this);
 		}
@@ -124,13 +124,13 @@ void AMachineActor::ProcessValidRecipes()
 
 bool AMachineActor::AreAllShapesInRecipe(const URecipeDataItem& RecipeData) const
 {
-	if(!ensure(RecipeData.InputShapes.Num() > 0))
+	if(!ensure(RecipeData.InputNames.Num() > 0))
 	{
 		UE_LOG(LogTemp, Error, TEXT("AMachineActor::AreAllShapesInRecipe - No InputShape provided for recipe : %s"), *(RecipeData.Name.ToString()));
 		return false;
 	}
 	
-	for (const FText& ShapeName : RecipeData.InputShapes)
+	for (const FText& ShapeName : RecipeData.InputNames)
 	{
 		const FShapeCollection* ShapeCollection = NearbyShapes.Find(UHelperClass::ConvertToName(ShapeName));
 		if(!ensure(ShapeCollection))

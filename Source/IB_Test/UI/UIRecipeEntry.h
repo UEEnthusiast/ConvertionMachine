@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RecipeDataEntry.h"
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/IUserObjectListEntry.h"
 #include "UIRecipeEntry.generated.h"
@@ -17,6 +18,7 @@ class IB_TEST_API UUIRecipeEntry : public UUserWidget, public IUserObjectListEnt
 
 public: 
 	virtual void NativeConstruct() override;
+	void SetInputList(const URecipeDataItem* Item);
 
 	// IUserObjectListEntry
 	virtual void NativeOnListItemObjectSet(UObject* ListItemObject) override;
@@ -32,9 +34,9 @@ private:
 
 	UPROPERTY(meta=(BindWidget))
 	class UTextBlock* NameLabel = nullptr;
-
-	UPROPERTY(meta=(BindWidget))
-	class UTextBlock* Input = nullptr;
+	
+	UPROPERTY(meta = (BindWidget))
+	class UListView* InputListView = nullptr;
 
 	UPROPERTY(meta=(BindWidget))
 	class UTextBlock* Output = nullptr;

@@ -19,7 +19,7 @@ public:
 	void Initialize(const FText& InName,const TArray<FText>& InInputShape, const FText& InOutputShape)
 	{
 		Name = InName;
-		InputShapes = InInputShape;
+		InputNames = InInputShape;
 		OutputShape = InOutputShape;
 		bIsActivated = true;
 	}
@@ -34,7 +34,7 @@ public:
 	 * Shapes that need to be ingested for this recipe.
 	 */
 	UPROPERTY(EditAnywhere)
-	TArray<FText> InputShapes = {};
+	TArray<FText> InputNames = {};
 
 	/**
 	 * Shapes produced by the recipe.

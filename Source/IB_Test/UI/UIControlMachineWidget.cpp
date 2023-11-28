@@ -3,7 +3,6 @@
 
 #include "UIControlMachineWidget.h"
 
-#include "Components/CanvasPanel.h"
 #include "Components/ComboBox.h"
 #include "Components/ComboBoxString.h"
 #include "Components/ListView.h"
@@ -25,14 +24,14 @@ void UUIControlMachineWidget::NativeConstruct()
 	const UWorld* World = GetWorld();
 	if (!ensure(World))
 	{
-		//Todo: LOG
+		UE_LOG(LogTemp, Error, TEXT("UUIControlMachineWidget::NativeConstruct - World is invalid"));
 		return;
 	}
 	
 	RecipeSubsystem = World->GetSubsystem<URecipeSubsystem>();
 	if(!ensure(RecipeSubsystem.IsValid()))
 	{
-		//Todo: LOG
+		UE_LOG(LogTemp, Error, TEXT("UUIControlMachineWidget::NativeConstruct - RecipeSubsystem is invalid"));
 		return;
 	}
 	
@@ -42,7 +41,7 @@ void UUIControlMachineWidget::NativeConstruct()
 
 	if(!ensure(OutMachineNames.Num() > 0))
 	{
-		//Todo: LOG
+		UE_LOG(LogTemp, Warning, TEXT("UUIControlMachineWidget::NativeConstruct - it seems that no machines were placed in the level"));
 		return;
 	}
 
@@ -58,21 +57,21 @@ void UUIControlMachineWidget::ToggleMachineWidget()
 {	
 	if(!ensure(Panel))
 	{
-		//Todo LOG
+		UE_LOG(LogTemp, Error, TEXT("UUIControlMachineWidget::ToggleMachineWidget - Panel is nullptr, probably because the Blueprint child wasn't linked"));
 		return;
 	}
 
 	APlayerController* PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
 	if(!ensure(PlayerController))
 	{
-		//Todo LOG
+		UE_LOG(LogTemp, Error, TEXT("UUIControlMachineWidget::ToggleMachineWidget - PlayerController is invalid"));
 		return;
 	}
 
 	ACharacter* Character = UGameplayStatics::GetPlayerCharacter(GetWorld(), 0);
 	if(!ensure(Character))
 	{
-		//Todo LOG
+		UE_LOG(LogTemp, Error, TEXT("UUIControlMachineWidget::ToggleMachineWidget - Character is invalid"));
 		return;
 	}
 	
@@ -100,14 +99,14 @@ void UUIControlMachineWidget::HandleSelectionChanged(FString SelectedItem, ESele
 	const UWorld* World = GetWorld();
 	if(!ensure(World))
 	{
-		//Todo: LOG
+		UE_LOG(LogTemp, Error, TEXT("UUIControlMachineWidget::HandleSelectionChanged - World is invalid"));
 		return;
 	}
 	
 	const TSoftObjectPtr<AMachineActor> SelectedMachineFound = RecipeSubsystem->GetMachineActorByName(SelectedItem);
 	if(!ensure(SelectedMachineFound.IsValid()))
 	{
-		//Todo: LOG
+		UE_LOG(LogTemp, Error, TEXT("UUIControlMachineWidget::HandleSelectionChanged - the SelectedMachineFound is invalid"));
 		return;
 	}
 

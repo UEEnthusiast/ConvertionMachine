@@ -34,7 +34,7 @@ bool AMachineActor::SetRecipeAvailability(const FText& RecipeName, bool bIsActiv
 	URecipeDataItem* RecipeDataEntry = RecipeDataEntries.FindChecked(UHelperClass::ConvertToName(RecipeName));
 	if(!ensure(RecipeDataEntry))
 	{
-		//Todo : LOG
+		UE_LOG(LogTemp, Error, TEXT("AMachineActor::SetRecipeAvailability - Couldn't Find Recipe %s"), *RecipeName.ToString());
 		return false;
 	}
 	
@@ -45,9 +45,6 @@ bool AMachineActor::SetRecipeAvailability(const FText& RecipeName, bool bIsActiv
 void AMachineActor::BeginPlay()
 {
 	Super::BeginPlay();
-
-	Collider->OnComponentBeginOverlap.AddDynamic(this, &AMachineActor::OnColliderBeginOverlap);
-	Collider->OnComponentEndOverlap.AddDynamic(this, &AMachineActor::OnColliderEndOverlap);
 	
 	const UWorld* World = GetWorld();
 	if(!World)
@@ -82,6 +79,9 @@ void AMachineActor::BeginPlay()
 	{
 		NearbyShapes.Add(ShapeName);
 	}
+	
+	Collider->OnComponentBeginOverlap.AddDynamic(this, &AMachineActor::OnColliderBeginOverlap);
+	Collider->OnComponentEndOverlap.AddDynamic(this, &AMachineActor::OnColliderEndOverlap);
 }
 
 bool AMachineActor::DestroyShapeByName(const FName& ShapeName)
@@ -92,7 +92,10 @@ bool AMachineActor::DestroyShapeByName(const FName& ShapeName)
 		return false;
 	}
 
+	// We first remove the Shape from NearbyShapes
 	TSoftObjectPtr<AShapeActor> ShapeToDestroy = ShapeCollection->Shapes.Pop();
+
+	// Then we destroy it
 	return ShapeToDestroy->Destroy();
 
 }
@@ -108,21 +111,25 @@ bool AMachineActor::DestroyShapesByName(const TArray<FName>& ShapeNames)
 	return ShapeAllDestroyed;
 }
 
+void AMachineActor::ProceedValidRecipe(const URecipeDataItem& Recipe)
+{
+	if(DoesRecipeHaveAllInputShapes(Recipe) && Recipe.bIsActivated)
+	{
+		DestroyShapesByName(UHelperClass::ConvertToNames(Recipe.InputNames));
+			
+		RecipeSubsystem->SpawnShapeByName(UHelperClass::ConvertToName(Recipe.OutputShape), *this);
+	}
+}
+
 void AMachineActor::ProcessValidRecipes()
 {
 	for(const TPair<FName, URecipeDataItem*> Pair : RecipeDataEntries)
 	{
-		const URecipeDataItem& Recipe = *Pair.Value;
-		if(AreAllShapesInRecipe(Recipe) && Recipe.bIsActivated)
-		{
-			DestroyShapesByName(UHelperClass::ConvertToNames(Recipe.InputNames));
-			
-			RecipeSubsystem->SpawnShapeByName(UHelperClass::ConvertToName(Recipe.OutputShape), this);
-		}
+		ProceedValidRecipe(*Pair.Value);
 	}
 }
 
-bool AMachineActor::AreAllShapesInRecipe(const URecipeDataItem& RecipeData) const
+bool AMachineActor::DoesRecipeHaveAllInputShapes(const URecipeDataItem& RecipeData) const
 {
 	if(!ensure(RecipeData.InputNames.Num() > 0))
 	{

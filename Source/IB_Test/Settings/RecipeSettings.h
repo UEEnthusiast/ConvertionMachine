@@ -6,6 +6,7 @@
 #include "Engine/DeveloperSettings.h"
 #include "RecipeSettings.generated.h"
 
+class UNiagaraSystem;
 class UDataTable;
 /**
  * Custom class settings for recipe-related configurations.
@@ -23,4 +24,8 @@ public:
 	/* DataTable of shapes */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "General", AdvancedDisplay)
 	TSoftObjectPtr<UDataTable> ShapeDataTable;
+
+	/* VFX used when spawning the recipe output*/
+	UPROPERTY(Config, EditAnywhere, BlueprintReadOnly, Category = "VFX", AdvancedDisplay)
+	TSoftObjectPtr<UNiagaraSystem> SpawnVfx;
 };

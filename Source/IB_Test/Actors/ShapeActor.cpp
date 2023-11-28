@@ -14,9 +14,13 @@ AShapeActor::AShapeActor()
 void AShapeActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+	
+	RotateActor(DeltaTime);
+}
 
-	// Rotate the actor
-	FRotator NewRotation = GetActorRotation(); // Get the current rotation
+void AShapeActor::RotateActor(float DeltaTime)
+{
+	FRotator NewRotation = GetActorRotation();
 	float RotationSpeed = 15.0f; // Adjust the rotation speed as needed
 
 	// Adjust the rotation based on the frame time and rotation speed

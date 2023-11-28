@@ -8,6 +8,18 @@ public class IB_Test : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "EnhancedInput", "DeveloperSettings", "UMG", "SlateCore" });
+		PublicDependencyModuleNames.AddRange(new string[]
+		{
+			"Core",
+			"CoreUObject",
+			"Engine",
+			"InputCore",
+			"HeadMountedDisplay",
+			"EnhancedInput",
+			"DeveloperSettings",
+			"UMG",
+			"SlateCore",
+			"Niagara"
+		});
 	}
 }

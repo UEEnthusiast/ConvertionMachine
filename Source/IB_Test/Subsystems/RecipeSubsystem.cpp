@@ -4,6 +4,7 @@
 #include "RecipeSubsystem.h"
 
 #include "EngineUtils.h"
+#include "NiagaraFunctionLibrary.h"
 #include "IB_Test/Datas/RecipeData.h"
 #include "IB_Test/Actors/MachineActor.h"
 #include "IB_Test/Actors/ShapeActor.h"
@@ -20,12 +21,13 @@ void URecipeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	const URecipeSettings* RecipeSettings = GetDefault<URecipeSettings>();
 	if(!ensure(RecipeSettings))
 	{
-		//Todo : LOG
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::Initialize - RecipeSettings nullptr"));
 		return;
 	}
 
 	CachedRecipeDataTable = RecipeSettings->RecipeDataTable.LoadSynchronous();
 	CachedShapeDataTable = RecipeSettings->ShapeDataTable.LoadSynchronous();
+	CachedSpawnVfx = RecipeSettings->SpawnVfx.LoadSynchronous();
 }
 
 void URecipeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -43,7 +45,7 @@ void URecipeSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 
 	if(!ensure(Machines.Num() > 0))
 	{
-		//Todo: Log
+		UE_LOG(LogTemp, Warning, TEXT("URecipeSubsystem::OnWorldBeginPlay - No Machine were placed in the world"));
 		return;
 	}
 
@@ -55,7 +57,7 @@ void URecipeSubsystem::OnRecipeSpawn(FText RecipeName)
 {
 	const FRecipeData RecipeData = GetRecipeDataByName(RecipeName);
 	
-	SpawnShapeByName(UHelperClass::ConvertToName(RecipeData.OutputShape), GetSelectedMachine().Get());
+	SpawnShapeByName(UHelperClass::ConvertToName(RecipeData.OutputShape), *GetSelectedMachine().Get());
 }
 
 void URecipeSubsystem::OnToggleRecipe(FText RecipeName, bool bIsActivated)
@@ -101,7 +103,7 @@ TSubclassOf<AShapeActor> URecipeSubsystem::GetShapeActorClassByName(const FName&
 		return FoundShapeData->ShapeActorClass;
 	}
 
-	checkNoEntry()
+	checkNoEntry();
 	return {};
 }
 
@@ -115,44 +117,79 @@ TArray<FName> URecipeSubsystem::GetAllShapeNames() const
 	return CachedShapeDataTable->GetRowNames();
 }
 
+TSoftObjectPtr<AMachineActor> URecipeSubsystem::GetSelectedMachine() const
+{
+	if(!ensure(SelectedMachine.IsValid()))
+	{
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::GetSelectedMachine - SelectedMachine is invalid"));
+		return nullptr;
+	}
+	return SelectedMachine;
+}
+
 TSoftObjectPtr<AMachineActor> URecipeSubsystem::GetMachineActorByName(const FString& MachineName) const
 {
 	const TSoftObjectPtr<AMachineActor> Machine = Machines.FindChecked(MachineName);
 	if(!ensure(Machine.IsValid()))
 	{
-		//Todo LOG
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::GetMachineActorByName - World is nullptr. Failed to spawn shape."));
 		return TSoftObjectPtr<AMachineActor>();
 	}
 
 	return Machine;
 }
 
-bool URecipeSubsystem::SpawnShapeByName(const FName& ShapeName, AMachineActor* MachineActor) const
+bool URecipeSubsystem::SpawnOutputShape(const TSubclassOf<AShapeActor> ShapeClass, AMachineActor& MachineActor) const
+{
+	UWorld* World = GetWorld();
+	if(!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::SpawnShape - World is nullptr. Failed to spawn shape."));
+		return false;
+	}
+	
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Owner = Cast<AActor>(&MachineActor);
+	SpawnParameters.Instigator = MachineActor.GetInstigator();
+	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
+	
+	
+	const AActor* SpawnedActor = World->SpawnActor<AActor>(ShapeClass, MachineActor.GetActorLocation(), FRotator(), SpawnParameters);
+	if (!SpawnedActor)
+	{
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::SpawnShape - Spawning class %s failed"), *ShapeClass.Get()->GetName());
+		return false;
+	}
+
+	return true;
+}
+
+bool URecipeSubsystem::SpawnShapeByName(const FName& ShapeName, AMachineActor& MachineActor) const
 { 
 	const TSubclassOf<AShapeActor> ShapeClass = GetShapeActorClassByName(ShapeName);
 	if(!ShapeClass)
 	{
-		UE_LOG(LogTemp, Error, TEXT("AMachineActor::SpawnShapeByName - Invalid ShapeClass associated with Shape Name : %s"), *(ShapeName.ToString()));
-		return false;
-	}
-
-	FActorSpawnParameters SpawnParameters;
-	SpawnParameters.Owner = Cast<AActor>(MachineActor);
-	SpawnParameters.Instigator = MachineActor->GetInstigator();
-	SpawnParameters.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-			
-	UWorld* World = GetWorld();
-	if(!World)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AMachineActor::SpawnShapeByName - World is nullptr. Failed to spawn shape."));
-		return false;
-	}
-	const AActor* SpawnedActor = World->SpawnActor<AActor>(ShapeClass, MachineActor->GetActorLocation(), FRotator(), SpawnParameters);
-	if (!SpawnedActor)
-	{
-		UE_LOG(LogTemp, Error, TEXT("AMachineActor::SpawnShapeByName - Spawning Shape %s using class %s failed"), *(ShapeName.ToString()), *ShapeClass.Get()->GetName());
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::SpawnShapeByName - Invalid ShapeClass associated with Shape Name : %s"), *(ShapeName.ToString()));
 		return false;
 	}
 	
-	return true;
+	const bool IsSpawned = SpawnOutputShape(ShapeClass, MachineActor);
+	if(IsSpawned)
+	{
+		SpawnSpawnVfx(MachineActor.GetActorLocation());
+	}
+	return IsSpawned;
+}
+
+void URecipeSubsystem::SpawnSpawnVfx(const FVector& SpawnLocation) const
+{
+	UWorld* World = GetWorld();
+	if(!World)
+	{
+		UE_LOG(LogTemp, Error, TEXT("URecipeSubsystem::SpawnSpawnVfx - World is nullptr. Failed to spawn shape."));
+		return;
+	}
+	
+	// Spawn VFX
+	UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, CachedSpawnVfx, SpawnLocation);
 }

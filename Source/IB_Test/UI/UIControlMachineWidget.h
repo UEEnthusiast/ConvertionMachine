@@ -10,7 +10,7 @@ class URecipeSubsystem;
 class AMachineActor;
 
 /**
- * Widget used for Controlling the Machines
+ * This widget provides functionality for controlling machines
  */
 UCLASS()
 class IB_TEST_API UUIControlMachineWidget : public UUserWidget
@@ -18,12 +18,22 @@ class IB_TEST_API UUIControlMachineWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
-
 	virtual void NativeConstruct() override;
-	
+
+	/**
+	 * Blueprint callable function to toggle the visibility of the machine widget.
+	 */
 	UFUNCTION(BlueprintCallable)
 	void ToggleMachineWidget();
 
+	/**
+	 * @brief Handles the selection change event.
+	 * 
+	 * This function is bound to a selection change event and is called when the user makes a selection.
+	 *
+	 * @param SelectedItem The string representing the selected item.
+	 * @param SelectionType The type of selection event that occurred.
+	 */
 	UFUNCTION()
 	void HandleSelectionChanged(FString SelectedItem, ESelectInfo::Type SelectionType);
 

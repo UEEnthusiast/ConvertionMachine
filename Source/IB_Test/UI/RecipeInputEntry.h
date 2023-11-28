@@ -6,7 +6,7 @@
 #include "RecipeInputEntry.generated.h"
 
 /**
- * Object containing all necessary information for a a Recipe input in the UI.
+ * Object used by a ListView containing all necessary information for a recipe input in the UI.
  */
 UCLASS()
 class URecipeInputItem : public UObject

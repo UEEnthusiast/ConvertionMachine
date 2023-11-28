@@ -16,7 +16,8 @@ class IB_TEST_API AShapeActor : public AActor
 
 public:
 	AShapeActor();
-	
+	void RotateActor(float DeltaTime);
+
 	virtual void Tick(float DeltaTime) override;
 
 	/**

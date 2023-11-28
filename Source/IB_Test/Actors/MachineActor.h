@@ -36,24 +36,53 @@ class IB_TEST_API AMachineActor : public AActor
 public:
 	AMachineActor();
 
+	/**
+	 * @brief Gets the machine name as a string.
+	 *
+	 * @return The machine name as a string.
+	 */
 	FString GetMachineName() const
 	{
 		return MachineName.ToString();
 	}
 
+	/**
+	 * @brief Gets the list of affected recipes as an array of text.
+	 *
+	 * @return The array of affected recipe names.
+	 */
 	TArray<FText> GetAffectedRecipes() const
 	{
 		return AffectedRecipes;
 	}
- 
+
+	/**
+	 * @brief Gets the recipe entries associated with the machine.
+	 *
+	 * @return Array of recipe data items for the machine.
+	 */
 	TArray<URecipeDataItem*> GetRecipeEntries() const;
 
+	/**
+	 * @brief Sets the availability of a recipe.
+	 *
+	 * @param RecipeName The name of the recipe to modify.
+	 * @param bIsActivated The new activation status of the recipe.
+	 * @return True if the recipe availability is successfully set, false otherwise.
+	 */
 	bool SetRecipeAvailability(const FText& RecipeName, bool bIsActivated);
 
 	/**
 	 * Process all valid recipes for the machine, destroying input shapes and spawning output shapes as needed.
 	 */
 	void ProcessValidRecipes();
+	
+	/**
+	 * @brief Process a specific valid recipe for the machine, executing relevant actions.
+	 *
+	 * @param Recipe The valid recipe data item to be processed.
+	 */
+	void ProceedValidRecipe(const URecipeDataItem& Recipe);
 
 protected:
 	virtual void BeginPlay() override;
@@ -65,7 +94,7 @@ protected:
 	 * @return True if all shapes were successfully destroyed, false otherwise.
 	 */
 	bool DestroyShapesByName(const TArray<FName>& ShapeNames);
-	
+
 	/**
 	 * Destroy a shape by its name.
 	 *
@@ -122,11 +151,13 @@ private:
 	 * @param RecipeData The recipe data to be checked.
 	 * @return True if all required shapes are present, false otherwise.
 	 */
-	bool AreAllShapesInRecipe(const URecipeDataItem& RecipeData) const;
+	bool DoesRecipeHaveAllInputShapes(const URecipeDataItem& RecipeData) const;
 	
 	/*
-	* A simple TMap<FString,TSoftObjectPtr<AShapeActor>> isn't suitable in this context due to the potential presence of duplicate keys
-	* So we need to use a TMap<FString, FShapeCollection>
+	* Using a TMap<FString, FShapeCollection> instead of TMap<FString, TSoftObjectPtr<AShapeActor>>
+	* helps handle potential duplicate keys more effectively in this context.
+	* Additionally, utilizing a TMap is more efficient for avoiding constant looping over a TArray.
+	* Using a TArray for removal while looping can be risky, TMap is a safer alternative.
 	*/
 	UPROPERTY(Transient)
 	TMap<FName, FShapeCollection> NearbyShapes;

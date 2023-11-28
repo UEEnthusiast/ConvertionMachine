@@ -8,7 +8,8 @@
 #include "UIRecipeInputEntry.generated.h"
 
 /**
- * Entry for an Input Shape
+ * Represents a user interface entry for a input shape.
+ * This abstract class serves as the base for specific input shape entry widgets.
  */
 UCLASS(Abstract)
 class IB_TEST_API UUIRecipeInputEntry : public UUserWidget, public IUserObjectListEntry
@@ -26,5 +27,4 @@ private:
 
 	UPROPERTY(meta=(BindWidget))
 	class UTextBlock* InputName = nullptr;
-	
 };
